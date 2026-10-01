@@ -470,6 +470,8 @@ class Checker:
             checkin_result = api.checkin(cookie)
             result.status = checkin_result["status"]
             result.code = checkin_result.get("code", CheckinStatus.FAILURE)
+            if result.code == CheckinStatus.FAILURE:
+                return result
 
             # 3. 获取积分
             self._log(cookie_idx, domain, LogEmoji.POINTS, "查询总积分")
@@ -548,6 +550,7 @@ def main():
 
     except Exception as e:
         logger.error(f"{LogEmoji.ERROR} 主程序执行过程中发生未预期的错误: {e}")
+        exit_code = 1
         title, content, log_content = "# 脚本执行出错", str(e), str(e)
 
     # 4. 发送推送
