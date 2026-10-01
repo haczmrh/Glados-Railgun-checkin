@@ -49,6 +49,7 @@ jobs:
         python checkin.py
       env:
         PUSHDEER_SENDKEY: ${{ secrets.PUSHDEER_SENDKEY }}
+        GLADOS_USER_AGENT: ${{ vars.GLADOS_USER_AGENT }}
         GLADOS_DOMAINS: ${{ vars.GLADOS_DOMAINS }}
         GLADOS_COOKIES: ${{ secrets.GLADOS_COOKIES }}
         GLADOS_EXCHANGE_PLAN: ${{ secrets.GLADOS_EXCHANGE_PLAN }}

@@ -215,7 +215,7 @@ class API:
         """获取请求头"""
         return {
             "origin": f"https://{self.domain}",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+            "user-agent": os.environ.get("GLADOS_USER_AGENT") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
         }
 
     def _log(self, level: str, emoji: str, message: str, force: bool = False) -> None:
@@ -242,7 +242,7 @@ class API:
 
         try:
             if method.upper() == "POST":
-                response = self.session.post(url, headers=session_headers, data=json.dumps(data), timeout=(60, 120))
+                response = self.session.post(url, headers=session_headers, json=data, timeout=(60, 120))
             elif method.upper() == "GET":
                 response = self.session.get(url, headers=session_headers, timeout=(60, 120))
             else:
