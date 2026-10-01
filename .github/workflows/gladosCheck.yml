@@ -54,6 +54,13 @@ jobs:
         GLADOS_EXCHANGE_PLAN: ${{ secrets.GLADOS_EXCHANGE_PLAN }}
         GLADOS_VERBOSE: ${{ secrets.GLADOS_VERBOSE }}
 
+    - name: Notify Bark on failure
+      if: failure()
+      run: python3 notify_bark.py
+      env:
+        BARK_URL: ${{ secrets.BARK_URL }}
+        CHECKIN_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
     - name: Keep alive
       if: always()
       uses: liskin/gh-workflow-keepalive@v1 
