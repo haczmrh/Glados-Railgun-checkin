@@ -120,6 +120,10 @@ class Config:
         self.cookies_list: List[str] = []
         self.exchange_plan: str = self.DEFAULT_EXCHANGE_PLAN
         self.verbose: bool = self.DEFAULT_VERBOSE
+        domains = (os.environ.get("GLADOS_DOMAINS") or "glados.cloud,railgun.info")
+        self.DOMAINS = [domain.strip() for domain in domains.split(",") if domain.strip()]
+        if not self.DOMAINS or any(domain not in Config.DOMAINS for domain in self.DOMAINS):
+            raise ValueError("GLADOS_DOMAINS must contain glados.cloud and/or railgun.info")
         self._load_config()
 
     def _load_config(self) -> None:
@@ -521,6 +525,7 @@ logger = init_logger()
 
 def main():
     """主函数"""
+    exit_code = 1
     try:
         # 1. 加载配置
         logger.info(f"{LogEmoji.START} 步骤 1: 加载配置")
@@ -534,6 +539,7 @@ def main():
             logger.info(f"{LogEmoji.START} 步骤 2: 执行签到")
             checker = Checker(config)
             checker.checkin_all()
+            exit_code = int(any(result.code == CheckinStatus.FAILURE for result in checker.results))
 
             # 3. 格式化结果
             logger.info(f"{LogEmoji.START} 步骤 3: 格式化结果")
@@ -549,7 +555,8 @@ def main():
     push_service = PushService(config if "config" in locals() else "")
     push_service.send(title, content)
     logger.info(f"{LogEmoji.END} 签到完成")
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
