@@ -2,6 +2,7 @@ import requests
 import json
 import os
 import logging
+import time
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, asdict
@@ -240,22 +241,43 @@ class API:
         session_headers = self.headers.copy()
         session_headers["cookie"] = cookies
 
-        try:
-            if method.upper() == "POST":
-                response = self.session.post(url, headers=session_headers, json=data, timeout=(60, 120))
-            elif method.upper() == "GET":
-                response = self.session.get(url, headers=session_headers, timeout=(60, 120))
-            else:
-                self._log("error", LogEmoji.ERROR, f"不支持的 HTTP 方法: {method}", force=True)
+        method = method.upper()
+        if method not in {"GET", "POST"}:
+            self._log("error", LogEmoji.ERROR, f"不支持的 HTTP 方法: {method}", force=True)
+            return None
+
+        # 查询和每日签到可以安全重试；兑换可能扣积分，不自动重试。
+        retryable = method == "GET" or (method == "POST" and url == self._get_full_url(self.CHECKIN_URL))
+        max_attempts = 4 if retryable else 1
+        transient_statuses = {408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524}
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if method == "POST":
+                    response = self.session.post(url, headers=session_headers, json=data, timeout=(60, 120))
+                else:
+                    response = self.session.get(url, headers=session_headers, timeout=(60, 120))
+
+                if response.ok:
+                    return response
+
+                # 不打印整页 HTML，以免网关错误淹没真正的故障信息。
+                reason = f"HTTP {response.status_code}"
+                should_retry = response.status_code in transient_statuses
+                response.close()
+            except requests.exceptions.RequestException as e:
+                reason = type(e).__name__
+                should_retry = isinstance(e, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+
+            if not should_retry or attempt == max_attempts:
+                self._log("error", LogEmoji.ERROR, f"向 {url} 发起的请求失败: {reason}（尝试 {attempt}/{max_attempts}）", force=True)
                 return None
 
-            if not response.ok:
-                self._log("warning", LogEmoji.WARNING, f"向 {url} 发起的请求失败，状态码 {response.status_code}。响应内容: {response.text}", force=True)
-                return None
-            return response
-        except requests.exceptions.RequestException as e:
-            self._log("error", LogEmoji.ERROR, f"向 {url} 发起请求时发生网络错误: {e}", force=True)
-            return None
+            delay = 15 * (2 ** (attempt - 1))
+            self._log("warning", LogEmoji.WARNING, f"向 {url} 发起的请求暂时失败: {reason}，{delay} 秒后重试（尝试 {attempt}/{max_attempts}）", force=True)
+            time.sleep(delay)
+
+        return None
 
     def _get_checkin_data(self) -> Dict[str, str]:
         """获取签到数据"""
